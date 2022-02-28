@@ -8,6 +8,10 @@ authors = [
 ]
 maintainers = ["GoDaddy <oss@godaddy.com>"]
 license = "MIT"
+include = ["README.md"]
+keywords = ["ffi"]
+readme = "README.md"
+repository = "https://github.com/godaddy/cobhan-python/"
 
 [tool.poetry.dependencies]
 python = "^3.7"
