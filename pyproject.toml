@@ -2,7 +2,11 @@
 name = "cobhan"
 version = "0.1.0"
 description = "Cobhan FFI"
-authors = ["Joey Wilhelm <tarkatronic@gmail.com>"]
+authors = [
+    "Jeremiah Gowdy <jeremiah@gowdy.me>",
+    "Joey Wilhelm <tarkatronic@gmail.com>"
+]
+maintainers = ["GoDaddy <oss@godaddy.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
