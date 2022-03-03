@@ -26,9 +26,17 @@ class Cobhan:
             self.__sizeof_int32, byteorder="little", signed=True
         )
 
-    def _load_library(
-        self, library_path: str, library_name: str, cdefines: str
-    ) -> None:
+    def load_library(self, library_path: str, library_name: str, cdefines: str) -> None:
+        """Locate and load a library based on the current platform.
+
+        :param library_path: The filesystem path where the library is located
+        :param library_name: The name of the library to be loaded
+        :param cdefines: A declaration of the C types, functions, and globals
+          globals needed to use the shared object. This must be valid C syntax,
+          with one definition per line.
+        :raises UnsupportedOperation: If the operating system or CPU arch are
+          not supported
+        """
         self.__ffi.cdef(cdefines)
 
         system = platform.system()
@@ -73,7 +81,18 @@ class Cobhan:
         if need_chdir:
             os.chdir(old_dir)
 
-    def _load_library_direct(self, library_file_path: str, cdefines: str) -> None:
+    def load_library_direct(self, library_file_path: str, cdefines: str) -> None:
+        """Directly load a specific library file.
+
+        Generally speaking, you probably don't want this. Instead, you probably
+        want the `load_library` method which will load a platform-specific
+        library for you.
+
+        :param library_file_path: The full file path to the library
+        :param cdefines: A declaration of the C types, functions, and globals
+          globals needed to use the shared object. This must be valid C syntax,
+          with one definition per line.
+        """
         self.__ffi.cdef(cdefines)
         self._lib = self.__ffi.dlopen(library_file_path)
 
