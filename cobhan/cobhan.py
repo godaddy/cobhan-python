@@ -20,6 +20,7 @@ class Cobhan:
         self._lib: Optional[Any] = None
         self.__ffi: FFI = FFI()
         self.__sizeof_int32: int = self.__ffi.sizeof("int32_t")
+        self.__sizeof_int64: int = self.__ffi.sizeof("int64_t")
         self.__sizeof_header: int = self.__sizeof_int32 * 2
         self.__minimum_allocation: int = 1024
         self.__int32_zero_bytes: bytes = int(0).to_bytes(
@@ -234,3 +235,26 @@ class Cobhan:
             payload = bytearray(binaryfile.read())
         os.remove(file_name)
         return payload
+
+    def int_to_buf(self, num: int) -> CBuf:
+        """Copy an integer into a Cobhan buffer.
+
+        :param num: The integer to be copied
+        :returns: A new Cobhan buffer containing the integer
+        """
+        buf = self.__ffi.new(f"char[{self.__sizeof_int64}]")
+        self.__ffi.memmove(
+            buf[0 : self.__sizeof_int64],
+            num.to_bytes(self.__sizeof_int64, byteorder="little", signed=True),
+            self.__sizeof_int64,
+        )
+        return buf
+
+    def buf_to_int(self, buf: CBuf) -> int:
+        """Read a Cobhan buffer into an integer.
+
+        :param buf: The Cobhan buffer to be read
+        :returns: The integer contents of the buffer
+        """
+        value_buf = self.__ffi.unpack(buf, self.__sizeof_int64)
+        return int.from_bytes(value_buf, byteorder="little", signed=True)
