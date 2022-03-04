@@ -27,6 +27,14 @@ class Cobhan:
             self.__sizeof_int32, byteorder="little", signed=True
         )
 
+    @property
+    def minimum_allocation(self):
+        return self.__minimum_allocation
+
+    @property
+    def header_size(self):
+        return self.__sizeof_header
+
     def load_library(self, library_path: str, library_name: str, cdefines: str) -> None:
         """Locate and load a library based on the current platform.
 
@@ -152,13 +160,15 @@ class Cobhan:
         self.__set_payload(buf, payload, length)
         return buf
 
-    def str_to_buf(self, string: str) -> CBuf:
+    def str_to_buf(self, input: Optional[str]) -> CBuf:
         """Encode a string in utf8 and copy into a Cobhan buffer.
 
         :param string: The string to be copied
         :returns: A new Cobhan buffer containing the utf8 encoded string
         """
-        encoded_bytes = string.encode("utf8")
+        if not input:
+            return self.__ffi.new(f"char[{self.header_size}]")
+        encoded_bytes = input.encode("utf8")
         length = len(encoded_bytes)
         buf = self.allocate_buf(length)
         self.__set_payload(buf, encoded_bytes, length)

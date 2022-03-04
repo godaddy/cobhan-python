@@ -6,8 +6,8 @@ from unittest import mock, TestCase
 from cobhan import Cobhan
 
 
-class LoadTests(TestCase):
-    """Tests for the main Cobhan class"""
+class LoadLibraryTests(TestCase):
+    """Tests for Cobhan.load_library"""
 
     def setUp(self) -> None:
         self.ffi_patcher = mock.patch("cobhan.cobhan.FFI")
@@ -17,7 +17,7 @@ class LoadTests(TestCase):
         self.mock_dlopen = self.mock_ffi.return_value.dlopen
         self.mock_platform = self.platform_patcher.start()
 
-        self.addCleanup(self.mock_ffi.stop)
+        self.addCleanup(self.ffi_patcher.stop)
         self.addCleanup(self.platform_patcher.stop)
 
         self.cobhan = Cobhan()
@@ -76,3 +76,34 @@ class LoadTests(TestCase):
         self.mock_dlopen.assert_called_once_with(
             str(Path("libfoo/libbar-arm64.dll").resolve())
         )
+
+
+class StringTests(TestCase):
+    def setUp(self) -> None:
+
+        self.cobhan = Cobhan()
+        return super().setUp()
+
+    def test_minimum_allocation_is_enforced(self):
+        buf = self.cobhan.str_to_buf("foo")
+        self.assertEqual(
+            len(buf), (self.cobhan.minimum_allocation + self.cobhan.header_size)
+        )
+
+    def test_can_allocate_beyond_minimum(self):
+        long_str = "foobar" * 1000  # This will be 6k characters in length
+        buf = self.cobhan.str_to_buf(long_str)
+        self.assertEqual(len(buf), (len(long_str) + self.cobhan.header_size))
+
+    def test_two_way_conversion_maintains_string(self):
+        buf = self.cobhan.str_to_buf("foobar")
+        result = self.cobhan.buf_to_str(buf)
+        self.assertEqual(result, "foobar")
+
+    def test_empty_string_returns_empty_buffer(self):
+        buf = self.cobhan.str_to_buf("")
+        self.assertEqual(len(buf), self.cobhan.header_size)
+
+    def test_input_of_none_returns_empty_buffer(self):
+        buf = self.cobhan.str_to_buf(None)
+        self.assertEqual(len(buf), self.cobhan.header_size)
