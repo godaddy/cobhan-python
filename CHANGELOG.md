@@ -1,3 +1,7 @@
+## [0.3.0] - 2022-03-04
+
+- Changed `load_*` to return the libraries that have been loaded.
+
 ## [0.2.1] - 2022-03-04
 
 - Added `minimum_allocation` and `header_size` properties to the `Cobhan` class

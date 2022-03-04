@@ -11,13 +11,14 @@ from cffi import FFI
 
 # Pending https://github.com/python/typing/issues/593
 CBuf = bytearray  # Cobhan buffer -- returned from ffi.new()
+FFILibrary = Any
 
 
 class Cobhan:
     """Class representing the Cobhan translation layer"""
 
     def __init__(self):
-        self._lib: Optional[Any] = None
+        self._lib: Optional[FFILibrary] = None
         self.__ffi: FFI = FFI()
         self.__sizeof_int32: int = self.__ffi.sizeof("int32_t")
         self.__sizeof_int64: int = self.__ffi.sizeof("int64_t")
@@ -37,7 +38,9 @@ class Cobhan:
         """The size, in bytes, of a buffer's header"""
         return self.__sizeof_header
 
-    def load_library(self, library_path: str, library_name: str, cdefines: str) -> None:
+    def load_library(
+        self, library_path: str, library_name: str, cdefines: str
+    ) -> FFILibrary:
         """Locate and load a library based on the current platform.
 
         :param library_path: The filesystem path where the library is located
@@ -90,7 +93,9 @@ class Cobhan:
         if need_chdir:
             os.chdir(old_dir)
 
-    def load_library_direct(self, library_file_path: str, cdefines: str) -> None:
+        return self._lib
+
+    def load_library_direct(self, library_file_path: str, cdefines: str) -> FFILibrary:
         """Directly load a specific library file.
 
         Generally speaking, you probably don't want this. Instead, you probably
@@ -104,6 +109,7 @@ class Cobhan:
         """
         self.__ffi.cdef(cdefines)
         self._lib = self.__ffi.dlopen(library_file_path)
+        return self._lib
 
     def to_json_buf(self, obj: Any) -> CBuf:
         """Serialize an object into JSON in a Cobhan buffer.
