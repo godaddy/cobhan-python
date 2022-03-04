@@ -1,4 +1,4 @@
-"""Tests for the main Cobhan module"""
+# pylint: disable=missing-function-docstring,missing-class-docstring,missing-module-docstring
 
 from pathlib import Path
 from unittest import mock, TestCase
