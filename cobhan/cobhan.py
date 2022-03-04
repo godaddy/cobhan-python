@@ -47,7 +47,7 @@ class Cobhan:
                 os_ext = "-musl.so"
                 need_chdir = True
             else:
-                os_path = ".so"
+                os_ext = ".so"
         elif system == "Darwin":
             os_ext = ".dylib"
         elif system == "Windows":
@@ -64,9 +64,7 @@ class Cobhan:
             raise UnsupportedOperation("Unsupported CPU")
 
         # Get absolute library path
-        resolved_library_path = pathlib.Path(
-            os.path.join(library_path, os_path, arch_part)
-        ).resolve()
+        resolved_library_path = pathlib.Path(library_path).resolve()
 
         # Build library path with file name
         library_file_path = os.path.join(
