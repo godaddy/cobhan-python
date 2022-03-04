@@ -27,6 +27,16 @@ class Cobhan:
             self.__sizeof_int32, byteorder="little", signed=True
         )
 
+    @property
+    def minimum_allocation(self):
+        """The minimum buffer size, in bytes, that will be allocated for a string"""
+        return self.__minimum_allocation
+
+    @property
+    def header_size(self):
+        """The size, in bytes, of a buffer's header"""
+        return self.__sizeof_header
+
     def load_library(self, library_path: str, library_name: str, cdefines: str) -> None:
         """Locate and load a library based on the current platform.
 
@@ -47,7 +57,7 @@ class Cobhan:
                 os_ext = "-musl.so"
                 need_chdir = True
             else:
-                os_path = ".so"
+                os_ext = ".so"
         elif system == "Darwin":
             os_ext = ".dylib"
         elif system == "Windows":
@@ -64,9 +74,7 @@ class Cobhan:
             raise UnsupportedOperation("Unsupported CPU")
 
         # Get absolute library path
-        resolved_library_path = pathlib.Path(
-            os.path.join(library_path, os_path, arch_part)
-        ).resolve()
+        resolved_library_path = pathlib.Path(library_path).resolve()
 
         # Build library path with file name
         library_file_path = os.path.join(
@@ -154,12 +162,14 @@ class Cobhan:
         self.__set_payload(buf, payload, length)
         return buf
 
-    def str_to_buf(self, string: str) -> CBuf:
+    def str_to_buf(self, string: Optional[str]) -> CBuf:
         """Encode a string in utf8 and copy into a Cobhan buffer.
 
         :param string: The string to be copied
         :returns: A new Cobhan buffer containing the utf8 encoded string
         """
+        if not string:
+            return self.__ffi.new(f"char[{self.header_size}]")
         encoded_bytes = string.encode("utf8")
         length = len(encoded_bytes)
         buf = self.allocate_buf(length)
