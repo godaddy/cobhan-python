@@ -86,9 +86,7 @@ class StringTests(TestCase):
 
     def test_minimum_allocation_is_enforced(self):
         buf = self.cobhan.str_to_buf("foo")
-        self.assertEqual(
-            len(buf), (self.cobhan.minimum_allocation + self.cobhan.header_size)
-        )
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
 
     def test_can_allocate_beyond_minimum(self):
         long_str = "foobar" * 1000  # This will be 6k characters in length
@@ -102,8 +100,40 @@ class StringTests(TestCase):
 
     def test_empty_string_returns_empty_buffer(self):
         buf = self.cobhan.str_to_buf("")
-        self.assertEqual(len(buf), self.cobhan.header_size)
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
 
     def test_input_of_none_returns_empty_buffer(self):
         buf = self.cobhan.str_to_buf(None)
-        self.assertEqual(len(buf), self.cobhan.header_size)
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
+
+
+class BytesTests(TestCase):
+    def setUp(self) -> None:
+        self.cobhan = Cobhan()
+        return super().setUp()
+
+    def test_minimum_allocation_is_enforced(self):
+        data_bytes = "foo".encode("utf8")
+        buf = self.cobhan.bytes_to_buf(data_bytes)
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
+
+    def test_can_allocate_beyond_minimum(self):
+        long_str = "foobar" * 1000  # This will be 6k characters in length
+        data_bytes = long_str.encode("utf8")
+        buf = self.cobhan.bytes_to_buf(data_bytes)
+        self.assertEqual(len(buf), (len(long_str) + self.cobhan.header_size))
+
+    def test_two_way_conversion_maintains_string(self):
+        data_bytes = "foobar".encode("utf8")
+        buf = self.cobhan.bytes_to_buf(data_bytes)
+        result = self.cobhan.buf_to_bytes(buf)
+        self.assertEqual(result, data_bytes)
+
+    def test_empty_string_returns_empty_buffer(self):
+        data_bytes = "".encode("utf8")
+        buf = self.cobhan.bytes_to_buf(data_bytes)
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
+
+    def test_input_of_none_returns_empty_buffer(self):
+        buf = self.cobhan.bytes_to_buf(None)
+        self.assertEqual(len(buf), self.cobhan.minimum_allocation)
