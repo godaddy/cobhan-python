@@ -28,6 +28,11 @@ class Cobhan:
             self.__sizeof_int32, byteorder="little", signed=True
         )
 
+    def shutdown(self):
+        if self._lib is not None:
+            self.__ffi.dlclose(self._lib)
+            self._lib = None
+
     @property
     def minimum_allocation(self):
         """The minimum buffer size, in bytes, that will be allocated for a string"""
