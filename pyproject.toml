@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cobhan"
-version = "0.4.1"
+version = "0.4.2"
 description = "Cobhan FFI"
 authors = [
     "Jeremiah Gowdy <jeremiah@gowdy.me>",
