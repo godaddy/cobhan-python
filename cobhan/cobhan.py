@@ -152,9 +152,7 @@ class Cobhan:
         :param length: The length of the payload
         """
         self.__set_header(buf, length)        
-        self.__debug_print_buffer(buf, length)
         buf[self.__sizeof_header:self.__sizeof_header + length] = payload
-        self.__debug_print_buffer(buf, length)
 
     def bytearray_to_buf(self, payload: bytearray) -> Any:
         """Copy a bytearray to a Cobhan buffer.
