@@ -10,7 +10,7 @@ from typing import Any, ByteString, Optional
 from cffi import FFI
 
 # Pending https://github.com/python/typing/issues/593
-CBuf = bytearray  # Cobhan buffer -- returned from ffi.new()
+CBuf = bytearray  # Cobhan buffer
 FFILibrary = Any
 
 
@@ -23,7 +23,7 @@ class Cobhan:
         self.__sizeof_int32: int = self.__ffi.sizeof("int32_t")
         self.__sizeof_int64: int = self.__ffi.sizeof("int64_t")
         self.__sizeof_header: int = self.__sizeof_int32 * 2
-        self.__minimum_allocation: int = 1024
+        self.__minimum_payload_size: int = 1024
         self.__int32_zero_bytes: bytes = int(0).to_bytes(
             self.__sizeof_int32, byteorder="little", signed=True
         )
@@ -31,7 +31,7 @@ class Cobhan:
     @property
     def minimum_allocation(self):
         """The minimum buffer size, in bytes, that will be allocated for a string"""
-        return self.__minimum_allocation
+        return self.__minimum_payload_size + self.header_size
 
     @property
     def header_size(self):
@@ -127,55 +127,55 @@ class Cobhan:
         """
         return json.loads(self.buf_to_str(buf))
 
+    def __get_length(self, buf: CBuf) -> int:
+        length_buf = self.__ffi.unpack(buf, self.__sizeof_int32)
+        return int.from_bytes(length_buf, byteorder="little", signed=True)
+
     def __set_header(self, buf: CBuf, length: int) -> None:
         """Create a header in a Cobhan buffer.
 
         :param buf: The Cobhan buffer in which to create a header
         :param length: The length of the header to be created
         """
-        self.__ffi.memmove(
-            buf[0 : self.__sizeof_int32],
-            length.to_bytes(self.__sizeof_int32, byteorder="little", signed=True),
-            self.__sizeof_int32,
-        )
-        self.__ffi.memmove(
-            buf[self.__sizeof_int32 : self.__sizeof_int32 * 2],
-            self.__int32_zero_bytes,
-            self.__sizeof_int32,
-        )
+        length_bytes = length.to_bytes(self.__sizeof_int32, byteorder="little", signed=True)
+        buf[0:self.__sizeof_int32] = length_bytes
+        buf[self.__sizeof_int32:self.__sizeof_header] = self.__int32_zero_bytes
 
-    def __set_payload(self, buf: CBuf, payload: ByteString, length: int) -> None:
+    def __get_payload_slice(self, buf: bytearray, length: int) -> bytearray:
+        return buf[self.__sizeof_header:self.__sizeof_header + length]
+
+    def __set_payload(self, buf: CBuf, payload: bytearray, length: int) -> None:
         """Copy a payload into a Cobhan buffer.
 
         :param buf: The Cobhan buffer to copy the payload into
         :param payload: The payload to be copied
         :param length: The length of the payload
         """
-        self.__set_header(buf, length)
-        self.__ffi.memmove(
-            buf[self.__sizeof_header : self.__sizeof_header + length - 1],
-            payload,
-            length,
-        )
+        self.__set_header(buf, length)        
+        self.__debug_print_buffer(buf, length)
+        buf[self.__sizeof_header:self.__sizeof_header + length] = payload
+        self.__debug_print_buffer(buf, length)
 
-    def bytearray_to_buf(self, payload: ByteString) -> CBuf:
+    def bytearray_to_buf(self, payload: bytearray) -> Any:
         """Copy a bytearray to a Cobhan buffer.
 
         :param payload: The bytearray to be copied
         """
+        if payload is None:
+            return self.allocate_buf(0)
         length = len(payload)
         buf = self.allocate_buf(length)
         self.__set_payload(buf, payload, length)
         return buf
 
-    def str_to_buf(self, string: Optional[str]) -> CBuf:
+    def str_to_buf(self, string: Optional[str]) -> Any:
         """Encode a string in utf8 and copy into a Cobhan buffer.
 
         :param string: The string to be copied
         :returns: A new Cobhan buffer containing the utf8 encoded string
         """
         if not string:
-            return self.__ffi.new(f"char[{self.header_size}]")
+            return self.allocate_buf(0)
         encoded_bytes = string.encode("utf8")
         length = len(encoded_bytes)
         buf = self.allocate_buf(length)
@@ -188,8 +188,7 @@ class Cobhan:
         :param buffer_len: The length of the buffer to be allocated
         :returns: A new Cobhan buffer of the specified length
         """
-        length = int(buffer_len)
-        length = max(length, self.__minimum_allocation)
+        length = max(buffer_len, self.__minimum_payload_size)
         buf = self.__ffi.new(f"char[{self.__sizeof_header + length}]")
         self.__set_header(buf, length)
         return buf
@@ -200,13 +199,7 @@ class Cobhan:
         :param buf: The Cobhan buffer to be read
         :returns: The string contents of the buffer
         """
-        length_buf = self.__ffi.unpack(buf, self.__sizeof_int32)
-        length = int.from_bytes(length_buf, byteorder="little", signed=True)
-        if length < 0:
-            return self.__temp_to_str(buf, length)
-        encoded_bytes = self.__ffi.unpack(
-            buf[self.__sizeof_header : self.__sizeof_header + length], length
-        )
+        encoded_bytes = self.buf_to_bytearray(buf)
         return encoded_bytes.decode("utf8")
 
     def buf_to_bytearray(self, buf: CBuf) -> bytearray:
@@ -215,14 +208,12 @@ class Cobhan:
         :param buf: The Cobhan buffer to be copied
         :returns: The bytearray contents of the buffer
         """
-        length_buf = self.__ffi.unpack(buf, self.__sizeof_int32)
-        length = int.from_bytes(length_buf, byteorder="little", signed=True)
+        length = self.__get_length(buf)
         if length < 0:
             return self.__temp_to_bytearray(buf, length)
-        payload = bytearray(length)
-        self.__ffi.memmove(
-            payload, buf[self.__sizeof_header : self.__sizeof_header + length], length
-        )
+
+        payload = self.__ffi.unpack(buf[self.__sizeof_header:self.__sizeof_header + length] , length)
+
         return payload
 
     def __temp_to_str(self, buf: CBuf, length: int) -> str:
@@ -243,10 +234,8 @@ class Cobhan:
         :returns: The bytearray contents copied from the buffer
         """
         length = 0 - length
-        encoded_bytes = self.__ffi.unpack(
-            buf[self.__sizeof_header : self.__sizeof_header + length], length
-        )
-        file_name = encoded_bytes.decode("utf8")
+        payload = self.__ffi.unpack(buf[self.__sizeof_header:self.__sizeof_header + length], length)
+        file_name = payload.decode("utf8")
         with open(file_name, "rb") as binaryfile:
             payload = bytearray(binaryfile.read())
         os.remove(file_name)
@@ -258,13 +247,7 @@ class Cobhan:
         :param num: The integer to be copied
         :returns: A new Cobhan buffer containing the integer
         """
-        buf = self.__ffi.new(f"char[{self.__sizeof_int64}]")
-        self.__ffi.memmove(
-            buf[0 : self.__sizeof_int64],
-            num.to_bytes(self.__sizeof_int64, byteorder="little", signed=True),
-            self.__sizeof_int64,
-        )
-        return buf
+        return bytearray(num.to_bytes(self.__sizeof_int64, byteorder="little", signed=True))
 
     def buf_to_int(self, buf: CBuf) -> int:
         """Read a Cobhan buffer into an integer.
@@ -272,5 +255,4 @@ class Cobhan:
         :param buf: The Cobhan buffer to be read
         :returns: The integer contents of the buffer
         """
-        value_buf = self.__ffi.unpack(buf, self.__sizeof_int64)
-        return int.from_bytes(value_buf, byteorder="little", signed=True)
+        return int.from_bytes(buf[0:self.__sizeof_int64], byteorder="little", signed=True)
