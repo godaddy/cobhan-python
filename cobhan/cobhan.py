@@ -71,10 +71,10 @@ class Cobhan:
         machine = platform.machine()
         if machine in ("x86_64", "AMD64"):
             arch_part = "-x64"
-        elif machine == "arm64":
+        elif machine in ("arm64", "aarch64"):
             arch_part = "-arm64"
         else:
-            raise UnsupportedOperation("Unsupported CPU")
+            raise UnsupportedOperation(f"Unsupported CPU: {machine}")
 
         # Get absolute library path
         resolved_library_path = pathlib.Path(library_path).resolve()
@@ -151,7 +151,7 @@ class Cobhan:
         :param payload: The payload to be copied
         :param length: The length of the payload
         """
-        self.__set_header(buf, length)        
+        self.__set_header(buf, length)
         buf[self.__sizeof_header:self.__sizeof_header + length] = payload
 
     def bytearray_to_buf(self, payload: bytearray) -> Any:
